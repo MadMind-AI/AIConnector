@@ -101,8 +101,9 @@ proc complete*(
         model: string,
         systemPrompt: Text, 
         userPrompt: Text,
-        options: Option[CompleteOptions],
-        logger: Option[LoggerFunc]): string =
+        options: Option[CompleteOptions] = none(CompleteOptions),
+        logger: Option[LoggerFunc] = none(LoggerFunc)
+    ): string =
 
     var messages: seq[JsonNode] = @[]
     
@@ -147,7 +148,7 @@ proc complete*(
         let loggerFunc = logger.get()
         loggerFunc(fmt"запрос: {requestBody}")
     
-    return self.getCompletions(requestBody, logger)
+    return self.getCompletions($requestBody, logger)
 
 # Создает новый API для работы с ИИ в формате с OpenAI
 proc newOpenAiApi*(baseUrl: string, headers: HttpHeaders = newHttpHeaders()): OpenAiApi =    
