@@ -4,8 +4,8 @@ import options
 import strformat
 import sequtils
 
-import ./common/text
-import ./common/logger_func
+import ../common/text
+import ../common/logger_func
 # Константы по умолчанию для OpenAI API
 const
   # Константа для температуры генерации
@@ -34,6 +34,8 @@ type OpenAiApi* = object
     baseUrl: string
     # HTTP заголовки
     headers: HttpHeaders
+    # Логгер    
+    logger: Option[LoggerFunc]
 
 # Доступ к API с моделями
 type ApiWithModels* = object
@@ -69,15 +71,15 @@ proc getClient(self: OpenAiApi): HttpClient =
     result.headers = self.headers
 
 # Получает ответ от OpenAI API
-proc getCompletions(self: OpenAiApi, requestBody:string, logger: Option[LoggerFunc]): string =
+proc getCompletions(self: OpenAiApi, requestBody:string): string =
     let client = self.getClient()
     let url = self.baseUrl & "/v1/chat/completions"
     let response = client.post(url, requestBody)    
     if response.status != HTTP_STATUS_OK:
         raise newException(ValueError, fmt"API error: {response.body}")
 
-    if logger.isSome:
-        let loggerFunc = logger.get()
+    if self.logger.isSome:
+        let loggerFunc = self.logger.get()
         loggerFunc(fmt"ответ: {response.body}")
 
     let jsonResponse = parseJson(response.body)
@@ -101,14 +103,13 @@ proc complete*(
         model: string,
         systemPrompt: Text, 
         userPrompt: Text,
-        options: Option[CompleteOptions] = none(CompleteOptions),
-        logger: Option[LoggerFunc] = none(LoggerFunc)
+        options: Option[CompleteOptions] = none(CompleteOptions)        
     ): string =
 
     var messages: seq[JsonNode] = @[]
     
-    if logger.isSome:
-        let loggerFunc = logger.get()
+    if self.logger.isSome:
+        let loggerFunc = self.logger.get()
         loggerFunc(fmt"Системный prompt:")
         loggerFunc(systemPrompt.toString())
         loggerFunc(fmt"Пользовательский prompt:")
@@ -144,17 +145,21 @@ proc complete*(
         if opts.structuredResponse.isSome:
             requestBody["response_format"] = opts.structuredResponse.get()
 
-    if logger.isSome:
-        let loggerFunc = logger.get()
+    if self.logger.isSome:
+        let loggerFunc = self.logger.get()
         loggerFunc(fmt"запрос: {requestBody}")
     
-    return self.getCompletions($requestBody, logger)
+    return self.getCompletions($requestBody)
 
 # Создает новый API для работы с ИИ в формате с OpenAI
-proc newOpenAiApi*(baseUrl: string, headers: HttpHeaders = newHttpHeaders()): OpenAiApi =    
+proc newOpenAiApi*(
+        baseUrl: string, 
+        headers: HttpHeaders = newHttpHeaders(),
+        logger: Option[LoggerFunc] = none(LoggerFunc)): OpenAiApi =    
     var api = OpenAiApi(
         baseUrl: baseUrl,
-        headers: headers
+        headers: headers,
+        logger: logger
     )
 
     # Добавляет заголовок Content-Type
