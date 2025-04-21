@@ -20,3 +20,8 @@ proc toString*(text: Text): string =
 # Добавляет строку в prompt с переносом строки
 proc addLine*(text: var Text, line: string) =
     text.add(line)
+
+# Преобразует строку в текст
+converter toText*(text: string): Text =
+    return newText(text)
+
